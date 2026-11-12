@@ -76,7 +76,7 @@ function toggleMobileMenu(force){
 }
 document.querySelectorAll('.side [data-page], .mobilebar [data-page]').forEach(button=>button.addEventListener('click',()=>toggleMobileMenu(false)));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(false)});
-</script><section class="cloud-test" aria-label="Testes de conexão Supabase"><button type="button" class="cloud-launch" id="cloudLaunch" onclick="cloudToggle()">☁ Testar Supabase</button><div class="cloud-panel" id="cloudPanel"><button type="button" class="close-cloud" onclick="cloudToggle(false)">Fechar ×</button><h3>Minhas Finanças · v0.5.4 TESTE — Etapa 32.1</h3><p><strong>Autenticação, leitura e envio manual para tabela de testes.</strong> O envio exige backup JSON e confirmação. Nenhum dado financeiro local será substituído.</p><label>Project URL</label><input id="cloudUrl" type="url" value="https://mjmjzifmenznsfsqljep.supabase.co" autocomplete="off"><label>Publishable key (sb_publishable_...)</label><input id="cloudKey" type="password" placeholder="Cole sua chave pública" autocomplete="off" spellcheck="false"><label>E-mail cadastrado no Supabase</label><input id="cloudEmail" type="email" autocomplete="username" placeholder="seu@email.com"><label>Senha do usuário Supabase</label><input id="cloudPassword" type="password" autocomplete="current-password"><div style="margin-top:12px"><button type="button" class="primary" onclick="cloudLogin()">Entrar e verificar</button><button type="button" onclick="cloudRead()">Testar leitura protegida</button><button type="button" onclick="cloudLogout()">Sair</button></div><hr><p><strong>Etapa 29.5 — Cópia para ambiente de testes</strong></p><label>Selecionar backup JSON original (não será modificado)</label><input type="file" id="cloudBackup" accept=".json,application/json" onchange="cloudPreviewBackup()"><p id="cloudPreview">Nenhum backup selecionado.</p><div><button type="button" onclick="cloudTestRead()">Consultar revisão de testes</button><button type="button" class="primary" onclick="cloudTestUpload()">Enviar cópia para testes</button><button type="button" onclick="cloudTestVerify()">Conferir cópia na nuvem</button></div><hr><p><strong>Etapa 30.1 — Testes entre dispositivos (sem alterar os dados locais)</strong></p><p>Após autenticar, consulte a revisão e os totais da cópia na nuvem. A leitura não depende do backup JSON. Você pode baixar uma cópia JSON separada para conferência, sem restaurá-la no aplicativo.</p><div><button type="button" onclick="cloudCrossDeviceRead()">Consultar cópia da nuvem</button><button type="button" onclick="cloudCrossDeviceDownload()">Baixar cópia da nuvem (JSON)</button><button type="button" onclick="cloudCrossDeviceConflict()">Testar rejeição de revisão antiga</button></div><p style="font-size:12px">O teste de conflito usa revisão 0 e exige que já exista uma revisão maior que 0. O resultado correto é a rejeição pelo servidor. Nenhum dado local será alterado.</p><hr><p><strong>Etapa 31.3 — Criar revisão 2 (somente ambiente de testes)</strong></p><p>Acrescenta um evento fictício ao histórico de auditoria da cópia da nuvem. Exige revisão 1, confirmação e conferência integral após a gravação. Não altera os dados locais.</p><div><button type="button" class="primary" id="cloudRev2Button" onclick="cloudCreateRevision2()">Criar revisão 2 — Teste de sincronização</button></div><hr><p><strong>Etapa 32.1 — Comparar dados locais e nuvem (somente leitura)</strong></p><p>Compara o estado carregado neste navegador com a revisão disponível em <code>finance_snapshots_test</code>. Não exibe valores financeiros nem modifica dados. Atenção: cada dispositivo pode ter dados locais diferentes.</p><div><button type="button" id="cloudCompareButton" onclick="cloudCompareLocalRemote()">Comparar dados locais × nuvem</button></div><p id="cloudCompareStatus" role="status" aria-live="polite">Comparação ainda não realizada.</p><pre id="cloudCompareResult">Nenhum dado foi comparado.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+</script><section class="cloud-test" aria-label="Testes de conexão Supabase"><button type="button" class="cloud-launch" id="cloudLaunch" onclick="cloudToggle()">☁ Testar Supabase</button><div class="cloud-panel" id="cloudPanel"><button type="button" class="close-cloud" onclick="cloudToggle(false)">Fechar ×</button><h3>Minhas Finanças · v0.5.4 TESTE — Etapa 32.2</h3><p><strong>Autenticação, leitura e envio manual para tabela de testes.</strong> O envio exige backup JSON e confirmação. Nenhum dado financeiro local será substituído.</p><label>Project URL</label><input id="cloudUrl" type="url" value="https://mjmjzifmenznsfsqljep.supabase.co" autocomplete="off"><label>Publishable key (sb_publishable_...)</label><input id="cloudKey" type="password" placeholder="Cole sua chave pública" autocomplete="off" spellcheck="false"><label>E-mail cadastrado no Supabase</label><input id="cloudEmail" type="email" autocomplete="username" placeholder="seu@email.com"><label>Senha do usuário Supabase</label><input id="cloudPassword" type="password" autocomplete="current-password"><div style="margin-top:12px"><button type="button" class="primary" onclick="cloudLogin()">Entrar e verificar</button><button type="button" onclick="cloudRead()">Testar leitura protegida</button><button type="button" onclick="cloudLogout()">Sair</button></div><hr><p><strong>Etapa 29.5 — Cópia para ambiente de testes</strong></p><label>Selecionar backup JSON original (não será modificado)</label><input type="file" id="cloudBackup" accept=".json,application/json" onchange="cloudPreviewBackup()"><p id="cloudPreview">Nenhum backup selecionado.</p><div><button type="button" onclick="cloudTestRead()">Consultar revisão de testes</button><button type="button" class="primary" onclick="cloudTestUpload()">Enviar cópia para testes</button><button type="button" onclick="cloudTestVerify()">Conferir cópia na nuvem</button></div><hr><p><strong>Etapa 30.1 — Testes entre dispositivos (sem alterar os dados locais)</strong></p><p>Após autenticar, consulte a revisão e os totais da cópia na nuvem. A leitura não depende do backup JSON. Você pode baixar uma cópia JSON separada para conferência, sem restaurá-la no aplicativo.</p><div><button type="button" onclick="cloudCrossDeviceRead()">Consultar cópia da nuvem</button><button type="button" onclick="cloudCrossDeviceDownload()">Baixar cópia da nuvem (JSON)</button><button type="button" onclick="cloudCrossDeviceConflict()">Testar rejeição de revisão antiga</button></div><p style="font-size:12px">O teste de conflito usa revisão 0 e exige que já exista uma revisão maior que 0. O resultado correto é a rejeição pelo servidor. Nenhum dado local será alterado.</p><hr><p><strong>Etapa 31.3 — Criar revisão 2 (somente ambiente de testes)</strong></p><p>Acrescenta um evento fictício ao histórico de auditoria da cópia da nuvem. Exige revisão 1, confirmação e conferência integral após a gravação. Não altera os dados locais.</p><div><button type="button" class="primary" id="cloudRev2Button" onclick="cloudCreateRevision2()">Criar revisão 2 — Teste de sincronização</button></div><hr><p><strong>Etapa 32.1 — Comparar dados locais e nuvem (somente leitura)</strong></p><p>Compara o estado carregado neste navegador com a revisão disponível em <code>finance_snapshots_test</code>. Não exibe valores financeiros nem modifica dados. Atenção: cada dispositivo pode ter dados locais diferentes.</p><div><button type="button" id="cloudCompareButton" onclick="cloudCompareLocalRemote()">Comparar dados locais × nuvem</button></div><p id="cloudCompareStatus" role="status" aria-live="polite">Comparação ainda não realizada.</p><pre id="cloudCompareResult">Nenhum dado foi comparado.</pre><hr><p><strong>Etapa 32.2 — Recuperação simulada e protegida (sem substituir o aplicativo)</strong></p><p>Por segurança, esta etapa restaura a cópia da nuvem <strong>somente em uma área isolada de testes</strong> deste navegador. A chave financeira principal <code>minhas_financas_v052</code> não será alterada. Antes da simulação, é obrigatório baixar e selecionar novamente um backup dos dados locais.</p><div><button type="button" id="cloud32BackupButton" onclick="cloud32DownloadLocalBackup()">1. Baixar backup local de segurança</button></div><label>2. Selecionar o backup recém-baixado para conferir</label><input type="file" id="cloud32BackupFile" accept=".json,application/json" onchange="cloud32VerifyLocalBackup()"><p id="cloud32BackupStatus" role="status" aria-live="polite">Aguardando backup de segurança.</p><div><button type="button" id="cloud32PreviewButton" onclick="cloud32Preview()">3. Pré-visualizar recuperação</button><button type="button" class="primary" id="cloud32RestoreButton" onclick="cloud32RestoreSandbox()">4. Simular recuperação isolada</button></div><p id="cloud32Status" role="status" aria-live="polite">Nenhuma recuperação realizada.</p><pre id="cloud32Result">A área isolada de testes ainda não foi modificada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}
@@ -301,6 +301,100 @@ async function cloudCompareLocalRemote(){
   status.textContent=localHash===remoteHash?'Comparação concluída: conteúdo integral igual. Nenhum dado alterado.':'Comparação concluída: há diferenças. Nenhum dado alterado.';
  }catch(e){status.textContent='Comparação não concluída: '+e.message;out.textContent='Nenhuma alteração foi realizada.'}
  finally{cloudCompareBusy=false;button.disabled=false}
+}
+
+/* Etapa 32.2: recuperação simulada. NUNCA escreve na chave financeira principal. */
+const CLOUD32_SANDBOX_KEY='minhas_financas_sync_sandbox_v0322';
+let cloud32Proof=null,cloud32PreviewState=null,cloud32Busy=false;
+function cloud32Status(msg){document.getElementById('cloud32Status').textContent=msg}
+function cloud32ReadLocal(){
+ const raw=localStorage.getItem(KEY);
+ if(raw===null)throw Error('Dados locais não encontrados nesta origem. Não é seguro continuar.');
+ const data=JSON.parse(raw);cloudValidateBackup({format:'minhas-financas',schema:5,data});
+ return data;
+}
+async function cloud32Hash(data){return cloudSha256(JSON.stringify(cloudStable(data)))}
+function cloud32SaveFile(payload,name){
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+async function cloud32DownloadLocalBackup(){
+ try{
+  cloud32Proof=null;cloud32PreviewState=null;
+  document.getElementById('cloud32BackupFile').value='';
+  const data=cloud32ReadLocal();
+  const hash=await cloud32Hash(data);
+  const backup={format:'minhas-financas',schema:5,exportedAt:new Date().toISOString(),data};
+  cloud32SaveFile(backup,'minhas-financas-LOCAL-ANTES-TESTE-32-2.json');
+  document.getElementById('cloud32BackupStatus').textContent='Download solicitado. Confira se o arquivo foi salvo e selecione-o no campo abaixo. Assinatura: '+hash.slice(0,16)+'…';
+  cloud32Status('Aguardando conferência do arquivo baixado. Nenhum dado alterado.');
+ }catch(e){cloud32Status('Backup não iniciado: '+e.message)}
+}
+async function cloud32VerifyLocalBackup(){
+ cloud32Proof=null;cloud32PreviewState=null;
+ const el=document.getElementById('cloud32BackupStatus');
+ try{
+  const file=document.getElementById('cloud32BackupFile').files?.[0];
+  if(!file)throw Error('Selecione o arquivo de backup local.');
+  if(file.size>5*1024*1024)throw Error('Arquivo acima do limite de 5 MB.');
+  const backup=JSON.parse(await file.text()),backupData=cloudValidateBackup(backup);
+  const local=cloud32ReadLocal();
+  const [fileHash,localHash]=await Promise.all([cloud32Hash(backupData),cloud32Hash(local)]);
+  if(fileHash!==localHash)throw Error('O arquivo selecionado não coincide com os dados locais atuais. Faça novo backup.');
+  cloud32Proof={localHash,fileName:file.name};
+  el.textContent='Backup conferido: IGUAL aos dados locais atuais. '+cloudCounts(local)+' | SHA-256: '+fileHash.slice(0,16)+'…';
+  cloud32Status('Backup verificado. Agora pode pré-visualizar a recuperação.');
+ }catch(e){el.textContent='Backup NÃO validado: '+e.message;cloud32Status('Recuperação bloqueada. Nenhum dado alterado.')}
+}
+async function cloud32Preview(){
+ cloud32PreviewState=null;
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Faça login no Supabase.');
+  if(!cloud32Proof)throw Error('Baixe e confira primeiro o backup local.');
+  const local=cloud32ReadLocal();
+  const localHash=await cloud32Hash(local);
+  if(localHash!==cloud32Proof.localHash)throw Error('Os dados locais mudaram após o backup. Refazer backup.');
+  const remote=await cloudCrossDeviceGet();
+  const remoteHash=await cloud32Hash(remote.data);
+  cloud32PreviewState={revision:Number(remote.revision),remoteHash,localHash};
+  document.getElementById('cloud32Result').textContent='Origem: finance_snapshots_test | revisão '+remote.revision+'\n'+
+   'Local: '+cloudCounts(local)+'\nNuvem: '+cloudCounts(remote.data)+'\n'+
+   'SHA-256 local: '+localHash+'\nSHA-256 nuvem: '+remoteHash+'\n'+
+   'Destino da simulação: '+CLOUD32_SANDBOX_KEY+'\nChave financeira principal: NÃO SERÁ ALTERADA';
+  cloud32Status('Pré-visualização concluída. A simulação só ocorrerá após confirmação.');
+ }catch(e){cloud32Status('Pré-visualização bloqueada: '+e.message)}
+}
+async function cloud32RestoreSandbox(){
+ if(cloud32Busy)return;cloud32Busy=true;
+ const button=document.getElementById('cloud32RestoreButton');button.disabled=true;
+ try{
+  if(!cloudToken||!cloudUser||!cloud32Proof||!cloud32PreviewState)throw Error('Faça login, valide o backup e pré-visualize antes de continuar.');
+  const local=cloud32ReadLocal(),localHash=await cloud32Hash(local);
+  if(localHash!==cloud32Proof.localHash||localHash!==cloud32PreviewState.localHash)throw Error('Os dados locais mudaram. Refazer backup e comparação.');
+  const remote=await cloudCrossDeviceGet(),remoteHash=await cloud32Hash(remote.data);
+  if(Number(remote.revision)!==cloud32PreviewState.revision||remoteHash!==cloud32PreviewState.remoteHash)throw Error('A nuvem mudou após a pré-visualização. Refazer comparação.');
+  if(!confirm('SIMULAÇÃO da revisão '+remote.revision+' apenas em área ISOLADA deste navegador.\n\nO aplicativo principal e seus dados locais NÃO serão substituídos.\nBackup conferido: '+cloud32Proof.fileName+'\n\nDeseja executar a simulação?')){cloud32Status('Simulação cancelada.');return}
+  const previousSandbox=localStorage.getItem(CLOUD32_SANDBOX_KEY);
+  try{
+   localStorage.setItem(CLOUD32_SANDBOX_KEY,JSON.stringify(remote.data));
+   const sandbox=JSON.parse(localStorage.getItem(CLOUD32_SANDBOX_KEY));
+   const sandboxHash=await cloud32Hash(sandbox);
+   const currentLocalHash=await cloud32Hash(cloud32ReadLocal());
+   if(sandboxHash!==remoteHash||currentLocalHash!==localHash)throw Error('Falha na conferência de integridade.');
+   cloud32Status('SIMULAÇÃO APROVADA: cópia recuperada em área isolada, com SHA-256 igual. Dados financeiros locais preservados.');
+   document.getElementById('cloud32Result').textContent='Revisão da nuvem: '+remote.revision+'\n'+
+    'Destino: '+CLOUD32_SANDBOX_KEY+' (área isolada)\n'+cloudCounts(sandbox)+'\n'+
+    'SHA-256 nuvem: '+remoteHash+'\nSHA-256 área isolada: '+sandboxHash+'\n'+
+    'Comparação: IGUAL\nSHA-256 local original: '+currentLocalHash+'\nDados locais principais: NÃO MODIFICADOS';
+  }catch(e){
+   if(previousSandbox===null)localStorage.removeItem(CLOUD32_SANDBOX_KEY);
+   else localStorage.setItem(CLOUD32_SANDBOX_KEY,previousSandbox);
+   throw e;
+  }
+ }catch(e){cloud32Status('Simulação não confirmada: '+e.message+' Nenhuma substituição dos dados principais foi solicitada.')}
+ finally{cloud32Busy=false;button.disabled=false}
 }
 function cloudLogout(){cloudToken=null;cloudUser=null;document.getElementById('cloudPassword').value='';document.getElementById('cloudKey').value='';cloudStatus('Sessão de teste encerrada.');document.getElementById('cloudResult').textContent='Token descartado da memória.'}
 </script></body></html>

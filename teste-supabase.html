@@ -190,87 +190,88 @@ async function cloud328Check(){
  }finally{cloud328Busy=false;button.disabled=false;}
 }
 
-/* Etapa 32.9: restauração real LOCAL com rollback de melhor esforço.
-   Não há transação atômica no localStorage; não modifica Supabase. */
+/* Etapa 32.9: teste isolado, sem gravação na chave financeira principal. */
 let cloud329Busy=false;
-async function cloud329Restore(){
+async function cloud329SandboxTest(){
  if(cloud329Busy)return;
  cloud329Busy=true;
  const btn=document.getElementById('cloud329RestoreButton');
  const status=document.getElementById('cloud329Status');
  const result=document.getElementById('cloud329Result');
+ const isolated='minhas_financas_329_write_sandbox';
+ const guard='minhas_financas_329_guard_sandbox';
  btn.disabled=true;result.textContent='';
- let originalRaw=null,wrote=false;
- const guardKey='minhas_financas_recovery_guard_v0329';
+ const previousIsolated=localStorage.getItem(isolated);
+ const previousGuard=localStorage.getItem(guard);
+ const mainBefore=localStorage.getItem(KEY);
+ let testStatus='NÃO EXECUTADO',failureStatus='NÃO EXECUTADO',restoreStatus='NÃO EXECUTADO';
  try{
   if(!cloudToken||!cloudUser)throw Error('Autentique-se no Supabase.');
-  if(document.getElementById('cloud329Confirm').value.trim()!=='RESTAURAR')
-    throw Error('Digite RESTAURAR para autorizar.');
+  if(document.getElementById('cloud329Confirm').value.trim()!=='TESTAR')
+    throw Error('Digite TESTAR para autorizar o teste isolado.');
   const file=document.getElementById('cloud329PackageFile').files?.[0];
-  if(!file)throw Error('Selecione o pacote de recuperação 32.7.');
+  if(!file)throw Error('Selecione o pacote JSON da Etapa 32.7.');
   if(file.size>12*1024*1024)throw Error('Arquivo maior que 12 MB.');
   const pkg=JSON.parse(await file.text());
   if(!pkg||pkg.format!=='minhas-financas-recovery-package'||pkg.schema!==1||
-     pkg.mode!=='PREPARACAO_SEM_RESTAURACAO'||pkg.realRestoreAuthorized!==false||
-     pkg.rollback?.storageKey!==KEY||pkg.proposedRestore?.storageKey!==KEY)
+    pkg.mode!=='PREPARACAO_SEM_RESTAURACAO'||pkg.realRestoreAuthorized!==false||
+    pkg.rollback?.storageKey!==KEY||pkg.proposedRestore?.storageKey!==KEY||
+    typeof pkg.rollback.originalRaw!=='string')
     throw Error('Pacote de recuperação incompatível.');
-  if(typeof pkg.rollback.originalRaw!=='string')throw Error('Backup anterior ausente.');
   const before=JSON.parse(pkg.rollback.originalRaw);
   const proposed=pkg.proposedRestore.cloudData;
   cloudValidateBackup({format:'minhas-financas',schema:5,data:before});
   cloudValidateBackup({format:'minhas-financas',schema:5,data:proposed});
   if(await cloud32Hash(before)!==pkg.localSha256||
      await cloud32Hash(proposed)!==pkg.cloudSha256)
-    throw Error('Integridade do pacote inválida.');
-  originalRaw=localStorage.getItem(KEY);
-  if(originalRaw===null)throw Error('Dados principais ausentes.');
-  if(await cloud32Hash(cloud32ReadLocal())!==pkg.localSha256)
-    throw Error('Dados locais alterados desde a preparação do pacote.');
+    throw Error('Integridade SHA-256 do pacote inválida.');
+  if(mainBefore===null||await cloud32Hash(cloud32ReadLocal())!==pkg.localSha256)
+    throw Error('Dados locais mudaram desde o pacote.');
   const remote=await cloudCrossDeviceGet();
   if(Number(remote.revision)!==pkg.sourceRevision||
      await cloud32Hash(remote.data)!==pkg.cloudSha256)
-    throw Error('Nuvem alterada desde a preparação do pacote.');
-  if(localStorage.getItem(KEY)!==originalRaw)
-    throw Error('Dados locais alterados durante a verificação.');
-  if(!confirm('ATENÇÃO: RESTAURAÇÃO REAL neste navegador. A cópia da nuvem substituirá os dados financeiros locais, incluindo a auditoria. O pacote 32.7 deve estar salvo. O Supabase não será alterado. Continuar?'))
-    throw Error('Operação cancelada pelo usuário.');
-  if(!confirm('ÚLTIMA CONFIRMAÇÃO: substituir os dados locais agora? A reversão automática não é garantida em falhas do navegador/dispositivo.'))
-    throw Error('Operação cancelada pelo usuário.');
-  // Uma última conferência da nuvem após as confirmações.
-  const latest=await cloudCrossDeviceGet();
-  if(Number(latest.revision)!==pkg.sourceRevision||
-     await cloud32Hash(latest.data)!==pkg.cloudSha256)
-    throw Error('Nuvem alterada durante a confirmação.');
-  if(localStorage.getItem(KEY)!==originalRaw)
-    throw Error('Dados locais alterados durante a confirmação.');
-  const newRaw=JSON.stringify(proposed);
-  // Grava primeiro uma cópia da versão anterior em chave independente.
-  localStorage.setItem(guardKey,originalRaw);
-  if(localStorage.getItem(guardKey)!==originalRaw)
-    throw Error('Não foi possível conferir o ponto de reversão.');
-  localStorage.setItem(KEY,newRaw);wrote=true;
-  if(localStorage.getItem(KEY)!==newRaw||
-     await cloud32Hash(JSON.parse(localStorage.getItem(KEY)))!==pkg.cloudSha256)
-    throw Error('Falha na verificação da gravação local.');
-  // O objeto db em memória pertence ao aplicativo; recarregar antes de operar.
-  status.textContent='RESTAURAÇÃO LOCAL CONCLUÍDA E CONFERIDA. Supabase não modificado. Recarregue a página antes de usar os dados.';
-  result.textContent='RESULTADO: CONCLUÍDO\nRevisão de origem: '+pkg.sourceRevision+
-   '\nSHA-256 restaurado: '+pkg.cloudSha256+
-   '\nPonto de reversão local: '+guardKey+
-   '\nSupabase: NÃO MODIFICADO\nATENÇÃO: RECARREGUE A PÁGINA.';
-  document.getElementById('cloud329Confirm').value='';
- }catch(err){
-  let rollback='NÃO NECESSÁRIO';
-  if(wrote&&originalRaw!==null){
-   try{
-    localStorage.setItem(KEY,originalRaw);
-    rollback=localStorage.getItem(KEY)===originalRaw?'EXECUTADO E CONFERIDO':'NÃO CONFERIDO';
-   }catch(e){rollback='FALHOU: '+e.message;}
-  }
-  status.textContent='Restauração não concluída: '+err.message;
-  result.textContent='Rollback: '+rollback+
-   '\nSe houver falha de reversão, NÃO use o aplicativo. Preserve o pacote 32.7.';
- }finally{cloud329Busy=false;btn.disabled=false;}
+    throw Error('Nuvem mudou desde o pacote.');
+  if(localStorage.getItem(KEY)!==mainBefore)
+    throw Error('Dados locais mudaram durante a verificação.');
+  // Fluxo de sucesso em duas chaves isoladas.
+  localStorage.setItem(guard,pkg.rollback.originalRaw);
+  if(localStorage.getItem(guard)!==pkg.rollback.originalRaw)
+    throw Error('Falha no ponto de reversão isolado.');
+  const staged=JSON.stringify(proposed);
+  localStorage.setItem(isolated,staged);
+  if(await cloud32Hash(JSON.parse(localStorage.getItem(isolated)))!==pkg.cloudSha256)
+    throw Error('Falha de SHA-256 após gravação isolada.');
+  testStatus='APROVADO';
+  // Falha simulada após gravação, seguida de rollback na área isolada.
+  localStorage.setItem(isolated,JSON.stringify({simulatedFailure:true}));
+  localStorage.setItem(isolated,localStorage.getItem(guard));
+  if(localStorage.getItem(isolated)!==pkg.rollback.originalRaw)
+    throw Error('Rollback isolado não conferiu.');
+  failureStatus='APROVADO';
+  if(localStorage.getItem(KEY)!==mainBefore)
+    throw Error('ALERTA: chave financeira principal mudou durante o teste.');
+  status.textContent='ENSAIO ISOLADO APROVADO. Gravação, falha simulada e rollback conferidos.';
+ }catch(e){
+  status.textContent='ENSAIO BLOQUEADO: '+e.message;
+ }finally{
+  try{
+   if(previousIsolated===null)localStorage.removeItem(isolated);
+   else localStorage.setItem(isolated,previousIsolated);
+   if(previousGuard===null)localStorage.removeItem(guard);
+   else localStorage.setItem(guard,previousGuard);
+   restoreStatus=(localStorage.getItem(isolated)===previousIsolated&&
+     localStorage.getItem(guard)===previousGuard)?'CONFERIDO':'FALHOU';
+  }catch(e){restoreStatus='FALHOU: '+e.message;}
+  const unchanged=localStorage.getItem(KEY)===mainBefore;
+  if(!unchanged)status.textContent='ALERTA: dados principais alterados por outra operação. Interrompa os testes.';
+  result.textContent='Gravação isolada: '+testStatus+
+   '\nFalha simulada e rollback: '+failureStatus+
+   '\nLimpeza/restauração das chaves de teste: '+restoreStatus+
+   '\nChave financeira principal: '+(unchanged?'NÃO MODIFICADA':'ALTERADA')+
+   '\nSupabase: SEM GRAVAÇÃO PELO ENSAIO'+
+   '\nRestauração real: DESABILITADA';
+  cloud329Busy=false;btn.disabled=false;
+ }
 }
 </script><script>
 function toggleMobileMenu(force){
@@ -290,14 +291,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(fal
 <input id="cloud328PackageFile" type="file" accept=".json,application/json">
 <button type="button" id="cloud328CheckButton" onclick="cloud328Check()">Validar pacote e condições atuais</button>
 <p id="cloud328Status" role="status" aria-live="polite">Aguardando seleção do pacote.</p>
-<pre id="cloud328Result">Nenhuma alteração realizada. Restauração real bloqueada.</pre><hr><p><strong>Etapa 32.9 — Restauração local controlada (operação real)</strong></p>
-<p><strong>Atenção:</strong> esta operação substitui os dados financeiros armazenados neste navegador pela cópia da nuvem contida no pacote 32.7. Não grava no Supabase. Use somente no dispositivo em que o backup foi preparado. O arquivo de reversão 32.7 deve estar salvo em local seguro.</p>
+<pre id="cloud328Result">Nenhuma alteração realizada. Restauração real bloqueada.</pre><hr><p><strong>Etapa 32.9 — Homologação isolada da gravação e reversão</strong></p>
+<p><strong>Atenção:</strong> este teste usa exclusivamente chaves isoladas. Não modifica a chave financeira principal nem grava no Supabase. A restauração real foi desabilitada nesta versão para evitar impacto no aplicativo de produção, que compartilha o mesmo armazenamento do navegador.</p>
 <input id="cloud329PackageFile" type="file" accept=".json,application/json">
-<label for="cloud329Confirm">Para autorizar, digite RESTAURAR:</label>
-<input id="cloud329Confirm" type="text" autocomplete="off" placeholder="RESTAURAR">
-<button type="button" id="cloud329RestoreButton" onclick="cloud329Restore()">Validar novamente e restaurar dados locais</button>
+<label for="cloud329Confirm">Confirmação para o teste isolado: digite TESTAR:</label>
+<input id="cloud329Confirm" type="text" autocomplete="off" placeholder="TESTAR">
+<button type="button" id="cloud329RestoreButton" onclick="cloud329SandboxTest()">Testar gravação e rollback em área isolada</button>
 <p id="cloud329Status" role="status" aria-live="polite">Nenhuma restauração iniciada.</p>
-<pre id="cloud329Result">Restauração real exige autorização explícita.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}

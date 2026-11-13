@@ -135,6 +135,60 @@ function cloud327Download(){
  cloud32SaveFile(cloud327Package,'minhas-financas-PACOTE-RECUPERACAO-32-7.json');
  document.getElementById('cloud327Status').textContent='Download solicitado. Este pacote contém dados financeiros: guarde-o em local privado.';
 }
+
+/* Etapa 32.8: preflight read-only; nenhuma escrita principal. */
+let cloud328Busy=false;
+async function cloud328Check(){
+ if(cloud328Busy)return;
+ cloud328Busy=true;
+ const button=document.getElementById('cloud328CheckButton');
+ const status=document.getElementById('cloud328Status');
+ const result=document.getElementById('cloud328Result');
+ button.disabled=true;result.textContent='';
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Autentique-se no Supabase.');
+  const file=document.getElementById('cloud328PackageFile').files?.[0];
+  if(!file)throw Error('Selecione o pacote JSON baixado na Etapa 32.7.');
+  if(file.size>12*1024*1024)throw Error('Pacote excede 12 MB.');
+  const pkg=JSON.parse(await file.text());
+  if(!pkg||pkg.format!=='minhas-financas-recovery-package'||pkg.schema!==1||
+     pkg.mode!=='PREPARACAO_SEM_RESTAURACAO'||pkg.realRestoreAuthorized!==false)
+    throw Error('Arquivo não é um pacote válido da Etapa 32.7.');
+  if(pkg.rollback?.storageKey!==KEY||pkg.proposedRestore?.storageKey!==KEY)
+    throw Error('Chave financeira incompatível.');
+  if(typeof pkg.rollback.originalRaw!=='string')throw Error('Ponto de reversão ausente.');
+  const before=JSON.parse(pkg.rollback.originalRaw);
+  const proposed=pkg.proposedRestore.cloudData;
+  cloudValidateBackup({format:'minhas-financas',schema:5,data:before});
+  cloudValidateBackup({format:'minhas-financas',schema:5,data:proposed});
+  const hashBefore=await cloud32Hash(before);
+  const hashProposed=await cloud32Hash(proposed);
+  if(hashBefore!==pkg.localSha256||hashProposed!==pkg.cloudSha256)
+    throw Error('Integridade do pacote não confere com SHA-256 registrado.');
+  const originalRaw=localStorage.getItem(KEY);
+  if(originalRaw===null)throw Error('Armazenamento financeiro principal ausente.');
+  const currentLocal=cloud32ReadLocal();
+  const currentLocalHash=await cloud32Hash(currentLocal);
+  if(currentLocalHash!==pkg.localSha256)throw Error('Dados locais mudaram após criação do pacote. Gere novo pacote.');
+  const remote=await cloudCrossDeviceGet();
+  if(Number(remote.revision)!==pkg.sourceRevision)
+    throw Error('Revisão da nuvem mudou. Gere novo pacote.');
+  if(await cloud32Hash(remote.data)!==pkg.cloudSha256)
+    throw Error('Conteúdo da nuvem mudou. Gere novo pacote.');
+  if(localStorage.getItem(KEY)!==originalRaw)
+    throw Error('Armazenamento local mudou durante a validação.');
+  status.textContent='PRÉ-VALIDAÇÃO APROVADA. Pacote íntegro e condições atuais conferidas. Nenhuma restauração executada.';
+  result.textContent='RESULTADO: APROVADO\nRevisão: '+pkg.sourceRevision+
+    '\nSHA-256 local: '+hashBefore+'\nSHA-256 nuvem: '+hashProposed+
+    '\nPonto de reversão: ÍNTEGRO\nCópia proposta: ÍNTEGRA'+
+    '\nEstado local atual: CONFERIDO\nNuvem atual: CONFERIDA'+
+    '\nDados principais: NÃO MODIFICADOS\nSupabase: NÃO MODIFICADO'+
+    '\nRestauração real: BLOQUEADA';
+ }catch(e){
+  status.textContent='PRÉ-VALIDAÇÃO BLOQUEADA: '+e.message;
+  result.textContent='Nenhuma restauração executada.';
+ }finally{cloud328Busy=false;button.disabled=false;}
+}
 </script><script>
 function toggleMobileMenu(force){
  const open=typeof force==='boolean'?force:!document.body.classList.contains('mobile-menu-open');
@@ -148,7 +202,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(fal
 <div><button type="button" id="cloud327PrepareButton" onclick="cloud327Prepare()">Preparar pacote protegido (uma verificação)</button>
 <button type="button" id="cloud327DownloadButton" onclick="cloud327Download()" disabled>Baixar pacote de recuperação e reversão (JSON)</button></div>
 <p id="cloud327Status" role="status" aria-live="polite">Aguardando preparação. Recuperação real bloqueada.</p>
-<pre id="cloud327Result">Nenhuma alteração realizada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+<pre id="cloud327Result">Nenhuma alteração realizada.</pre><hr><p><strong>Etapa 32.8 — Conferência final do pacote antes da restauração</strong></p>
+<p>Selecione o pacote JSON salvo na Etapa 32.7. O aplicativo verifica a integridade do ponto de reversão, os dados propostos e a revisão atual da nuvem. Esta etapa é somente leitura: não executa restauração real.</p>
+<input id="cloud328PackageFile" type="file" accept=".json,application/json">
+<button type="button" id="cloud328CheckButton" onclick="cloud328Check()">Validar pacote e condições atuais</button>
+<p id="cloud328Status" role="status" aria-live="polite">Aguardando seleção do pacote.</p>
+<pre id="cloud328Result">Nenhuma alteração realizada. Restauração real bloqueada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}

@@ -314,6 +314,65 @@ function cloud330Download(){
  if(!cloud330Report)return;
  cloud32SaveFile(cloud330Report,'minhas-financas-DIAGNOSTICO-SYNC-33-0.json');
 }
+/* Etapa 33.1 — política explícita, somente estágio isolado e relatório. */
+let cloud331Busy=false,cloud331Plan=null;
+async function cloud331Prepare(){
+ if(cloud331Busy)return;
+ cloud331Busy=true;cloud331Plan=null;
+ const button=document.getElementById('cloud331Button');
+ const download=document.getElementById('cloud331Download');
+ const status=document.getElementById('cloud331Status');
+ const result=document.getElementById('cloud331Result');
+ const policy=document.getElementById('cloud331Choice').value;
+ const stageKey='minhas_financas_sync_stage_v0331';
+ const stageBefore=localStorage.getItem(stageKey);
+ let localRaw=null,stageResult='NÃO SOLICITADO',restoreResult='NÃO NECESSÁRIO';
+ button.disabled=true;download.disabled=true;result.textContent='';
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Autentique-se no Supabase.');
+  localRaw=localStorage.getItem(KEY);
+  if(localRaw===null)throw Error('Dados locais ausentes.');
+  const local=cloud32ReadLocal();
+  const remote=await cloudCrossDeviceGet();
+  const revision=Number(remote.revision);
+  if(!Number.isSafeInteger(revision)||revision<1)throw Error('Revisão inválida.');
+  const localHash=await cloud32Hash(local),cloudHash=await cloud32Hash(remote.data);
+  if(localStorage.getItem(KEY)!==localRaw)throw Error('Dados locais alterados durante a conferência.');
+  const sections=[];
+  for(const key of ['accounts','categories','transactions','cards','audit']){
+   sections.push({name:key,localCount:local[key].length,cloudCount:remote.data[key].length,equal:await cloud32Hash(local[key])===await cloud32Hash(remote.data[key])});
+  }
+  const differs=localHash!==cloudHash;
+  if(policy!=='block'){
+   const proposed=policy==='cloud'?remote.data:local;
+   localStorage.setItem(stageKey,JSON.stringify(proposed));
+   if(await cloud32Hash(JSON.parse(localStorage.getItem(stageKey)))!==(policy==='cloud'?cloudHash:localHash))
+    throw Error('Falha de integridade da cópia isolada.');
+   stageResult='INTEGRIDADE CONFERIDA';
+  }
+  if(localStorage.getItem(KEY)!==localRaw)throw Error('Dados principais alterados durante o preparo.');
+  cloud331Plan={format:'minhas-financas-sync-plan',schema:1,createdAt:new Date().toISOString(),revision,
+   policy,localSha256:localHash,cloudSha256:cloudHash,sections,conflict:differs,
+   approvedForWrite:false,localWritten:false,cloudWritten:false};
+  status.textContent=differs?'CONFLITO IDENTIFICADO: plano preparado, nenhuma sincronização autorizada.':'CÓPIAS IGUAIS: nenhuma sincronização necessária.';
+  result.textContent='Revisão da nuvem: '+revision+'\nPolítica: '+policy+'\nSHA-256 local: '+localHash+
+   '\nSHA-256 nuvem: '+cloudHash+'\n'+sections.map(x=>x.name+': '+x.localCount+' local / '+x.cloudCount+' nuvem — '+(x.equal?'IGUAL':'DIFERENTE')).join('\n')+
+   '\nEstágio isolado: '+stageResult+'\nGravação principal: NÃO\nEnvio ao Supabase: NÃO\nSincronização automática: BLOQUEADA';
+  download.disabled=false;
+ }catch(e){status.textContent='Plano bloqueado: '+e.message;result.textContent='Nenhuma sincronização executada.';}
+ finally{
+  try{
+   if(stageBefore===null)localStorage.removeItem(stageKey);else localStorage.setItem(stageKey,stageBefore);
+   restoreResult=localStorage.getItem(stageKey)===stageBefore?'CONFERIDO':'FALHOU';
+  }catch(e){restoreResult='FALHOU: '+e.message;}
+  if(localRaw!==null&&localStorage.getItem(KEY)!==localRaw){status.textContent='ALERTA: armazenamento principal mudou durante o teste.';download.disabled=true;}
+  result.textContent+='\nRestauração da área isolada: '+restoreResult;
+  cloud331Busy=false;button.disabled=false;
+ }
+}
+function cloud331DownloadPlan(){
+ if(cloud331Plan)cloud32SaveFile(cloud331Plan,'minhas-financas-PLANO-SYNC-33-1.json');
+}
 </script><script>
 function toggleMobileMenu(force){
  const open=typeof force==='boolean'?force:!document.body.classList.contains('mobile-menu-open');
@@ -339,7 +398,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(fal
 <input id="cloud329Confirm" type="text" autocomplete="off" placeholder="TESTAR">
 <button type="button" id="cloud329RestoreButton" onclick="cloud329SandboxTest()">Testar gravação e rollback em área isolada</button>
 <p id="cloud329Status" role="status" aria-live="polite">Nenhuma restauração iniciada.</p>
-<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><hr><p><strong>Etapa 33.0 — Diagnóstico de sincronização e conflitos (somente leitura)</strong></p><p>Verifica a cópia local deste dispositivo e a revisão da nuvem. Não envia, substitui ou mescla dados. Em caso de divergência, bloqueia sincronização automática até existir política de resolução validada.</p><div><button type="button" id="cloud330CheckButton" onclick="cloud330Check()">Verificar sincronização deste dispositivo</button><button type="button" id="cloud330DownloadButton" onclick="cloud330Download()" disabled>Baixar relatório sem dados financeiros</button></div><p id="cloud330Status" role="status" aria-live="polite">Aguardando diagnóstico.</p><pre id="cloud330Result">Nenhuma sincronização executada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><hr><p><strong>Etapa 33.0 — Diagnóstico de sincronização e conflitos (somente leitura)</strong></p><p>Verifica a cópia local deste dispositivo e a revisão da nuvem. Não envia, substitui ou mescla dados. Em caso de divergência, bloqueia sincronização automática até existir política de resolução validada.</p><div><button type="button" id="cloud330CheckButton" onclick="cloud330Check()">Verificar sincronização deste dispositivo</button><button type="button" id="cloud330DownloadButton" onclick="cloud330Download()" disabled>Baixar relatório sem dados financeiros</button></div><p id="cloud330Status" role="status" aria-live="polite">Aguardando diagnóstico.</p><pre id="cloud330Result">Nenhuma sincronização executada.</pre><hr><p><strong>Etapa 33.1 — Plano de resolução de conflitos por dispositivo</strong></p><p>Compara novamente os estados e prepara uma proposta de resolução sem substituir dados locais nem enviar alterações à nuvem. Quando houver diferenças, a escolha deve ser explícita. Não há mesclagem automática.</p><label for="cloud331Choice">Política proposta:</label><select id="cloud331Choice"><option value="block">Bloquear e manter as duas cópias (padrão seguro)</option><option value="cloud">Preparar cópia da nuvem em área isolada (não aplicar)</option><option value="local">Preparar cópia local em área isolada (não enviar)</option></select><button type="button" id="cloud331Button" onclick="cloud331Prepare()">Preparar e conferir plano de sincronização</button><button type="button" id="cloud331Download" onclick="cloud331DownloadPlan()" disabled>Baixar relatório do plano (sem dados financeiros)</button><p id="cloud331Status" role="status" aria-live="polite">Nenhuma operação iniciada.</p><pre id="cloud331Result">Sincronização automática não habilitada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}

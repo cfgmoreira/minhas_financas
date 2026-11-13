@@ -273,6 +273,47 @@ async function cloud329SandboxTest(){
   cloud329Busy=false;btn.disabled=false;
  }
 }
+
+/* Etapa 33.0: avaliação de conflitos sem mutações. */
+let cloud330Busy=false,cloud330Report=null;
+async function cloud330Check(){
+ if(cloud330Busy)return;
+ cloud330Busy=true;cloud330Report=null;
+ const btn=document.getElementById('cloud330CheckButton');
+ const dl=document.getElementById('cloud330DownloadButton');
+ const status=document.getElementById('cloud330Status');
+ const output=document.getElementById('cloud330Result');
+ btn.disabled=true;dl.disabled=true;status.textContent='Conferindo estados...';output.textContent='';
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Entre no Supabase antes de consultar.');
+  const raw=localStorage.getItem(KEY);
+  if(raw===null)throw Error('Não há dados financeiros locais neste navegador. Sincronização bloqueada.');
+  const local=cloud32ReadLocal();
+  const localHash=await cloud32Hash(local);
+  const remote=await cloudCrossDeviceGet();
+  const remoteHash=await cloud32Hash(remote.data);
+  const rev=Number(remote.revision);
+  if(!Number.isSafeInteger(rev)||rev<1)throw Error('Revisão da nuvem inválida.');
+  if(localStorage.getItem(KEY)!==raw)throw Error('Dados locais mudaram durante a comparação.');
+  const names=['accounts','categories','transactions','cards','audit'];
+  const diffs=[];
+  for(const name of names){
+   const a=local[name],b=remote.data[name];
+   diffs.push({section:name,localCount:a.length,cloudCount:b.length,equal:await cloud32Hash(a)===await cloud32Hash(b)});
+  }
+  const equal=localHash===remoteHash;
+  const decision=equal?'EM DIA — conteúdo local e nuvem idênticos':'CONFLITO POTENCIAL — versões diferentes; nenhuma direção de sincronização autorizada';
+  cloud330Report={format:'minhas-financas-sync-diagnostic',schema:1,createdAt:new Date().toISOString(),cloudRevision:rev,localSha256:localHash,cloudSha256:remoteHash,decision,sections:diffs,readOnly:true};
+  output.textContent='DIAGNÓSTICO: '+decision+'\nRevisão na nuvem: '+rev+'\nSHA-256 local: '+localHash+'\nSHA-256 nuvem: '+remoteHash+'\n'+diffs.map(x=>x.section+': '+x.localCount+' local / '+x.cloudCount+' nuvem — '+(x.equal?'IGUAL':'DIFERENTE')).join('\n')+'\nEnvio automático: BLOQUEADO\nSubstituição local: BLOQUEADA\nMesclagem: NÃO IMPLEMENTADA\nDados locais e Supabase: NÃO MODIFICADOS';
+  status.textContent=equal?'Dados idênticos. Nenhuma sincronização necessária.':'Diferença identificada. Sincronização automática bloqueada para proteger os dados.';
+  dl.disabled=false;
+ }catch(e){status.textContent='Diagnóstico interrompido: '+e.message;output.textContent='Nenhum dado modificado.';}
+ finally{cloud330Busy=false;btn.disabled=false;}
+}
+function cloud330Download(){
+ if(!cloud330Report)return;
+ cloud32SaveFile(cloud330Report,'minhas-financas-DIAGNOSTICO-SYNC-33-0.json');
+}
 </script><script>
 function toggleMobileMenu(force){
  const open=typeof force==='boolean'?force:!document.body.classList.contains('mobile-menu-open');
@@ -298,7 +339,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(fal
 <input id="cloud329Confirm" type="text" autocomplete="off" placeholder="TESTAR">
 <button type="button" id="cloud329RestoreButton" onclick="cloud329SandboxTest()">Testar gravação e rollback em área isolada</button>
 <p id="cloud329Status" role="status" aria-live="polite">Nenhuma restauração iniciada.</p>
-<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><hr><p><strong>Etapa 33.0 — Diagnóstico de sincronização e conflitos (somente leitura)</strong></p><p>Verifica a cópia local deste dispositivo e a revisão da nuvem. Não envia, substitui ou mescla dados. Em caso de divergência, bloqueia sincronização automática até existir política de resolução validada.</p><div><button type="button" id="cloud330CheckButton" onclick="cloud330Check()">Verificar sincronização deste dispositivo</button><button type="button" id="cloud330DownloadButton" onclick="cloud330Download()" disabled>Baixar relatório sem dados financeiros</button></div><p id="cloud330Status" role="status" aria-live="polite">Aguardando diagnóstico.</p><pre id="cloud330Result">Nenhuma sincronização executada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}

@@ -373,6 +373,104 @@ async function cloud331Prepare(){
 function cloud331DownloadPlan(){
  if(cloud331Plan)cloud32SaveFile(cloud331Plan,'minhas-financas-PLANO-SYNC-33-1.json');
 }
+
+/* Etapa 33.2: mesclagem de auditoria somente, RPC CAS na tabela de testes. */
+let cloud332Busy=false,cloud332Plan=null;
+async function cloud332Preview(){
+ if(cloud332Busy)return;
+ cloud332Busy=true;cloud332Plan=null;
+ const preview=document.getElementById('cloud332PreviewButton');
+ const apply=document.getElementById('cloud332ApplyButton');
+ const status=document.getElementById('cloud332Status');
+ const result=document.getElementById('cloud332Result');
+ preview.disabled=true;apply.disabled=true;
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Autentique-se no Supabase.');
+  const raw=localStorage.getItem(KEY);
+  const local=cloud32ReadLocal();
+  const remote=await cloudCrossDeviceGet();
+  const revision=Number(remote.revision);
+  if(!Number.isSafeInteger(revision)||revision<1)throw Error('Revisão inválida.');
+  for(const section of ['accounts','categories','transactions','cards']){
+   if(await cloud32Hash(local[section])!==await cloud32Hash(remote.data[section]))
+    throw Error('Diferença em '+section+': operação bloqueada. Nenhuma mesclagem financeira automática.');
+  }
+  const localHash=await cloud32Hash(local);
+  const remoteHash=await cloud32Hash(remote.data);
+  const merged=JSON.parse(JSON.stringify(remote.data));
+  const seen=new Set(merged.audit.map(e=>JSON.stringify(cloudStable(e))));
+  let added=0;
+  for(const event of local.audit){
+   const signature=JSON.stringify(cloudStable(event));
+   if(!seen.has(signature)){merged.audit.push(event);seen.add(signature);added++;}
+  }
+  const mergedHash=await cloud32Hash(merged);
+  if(localStorage.getItem(KEY)!==raw)throw Error('Dados locais mudaram durante a conferência.');
+  cloud332Plan={revision,raw,localHash,remoteHash,merged,mergedHash,added,cloudCount:remote.data.audit.length,localCount:local.audit.length};
+  status.textContent=added?'Conferência pronta. '+added+' evento(s) locais adicionais poderão ser enviados.':'Conferência pronta. Não existem eventos locais novos a enviar.';
+  result.textContent='Revisão esperada: '+revision+
+   '\nAuditoria local: '+local.audit.length+
+   '\nAuditoria nuvem: '+remote.data.audit.length+
+   '\nNovos eventos a incluir: '+added+
+   '\nAuditoria após conciliação: '+merged.audit.length+
+   '\nSHA-256 da nuvem antes: '+remoteHash+
+   '\nSHA-256 proposto: '+mergedHash+
+   '\nContas, categorias, lançamentos, cartões: IDÊNTICOS'+
+   '\nGravação: NÃO EXECUTADA';
+  apply.disabled=added===0;
+ }catch(e){status.textContent='Conferência bloqueada: '+e.message;result.textContent='Nenhuma gravação realizada.';}
+ finally{cloud332Busy=false;preview.disabled=false;}
+}
+async function cloud332Apply(){
+ if(cloud332Busy||!cloud332Plan)return;
+ cloud332Busy=true;
+ const plan=cloud332Plan;
+ const btn=document.getElementById('cloud332ApplyButton');
+ const preview=document.getElementById('cloud332PreviewButton');
+ const status=document.getElementById('cloud332Status');
+ const result=document.getElementById('cloud332Result');
+ btn.disabled=true;preview.disabled=true;cloud332Plan=null;
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Autentique-se novamente.');
+  if(localStorage.getItem(KEY)!==plan.raw||
+     await cloud32Hash(cloud32ReadLocal())!==plan.localHash)
+    throw Error('Dados locais mudaram; refaça a conferência.');
+  const current=await cloudCrossDeviceGet();
+  if(Number(current.revision)!==plan.revision||
+     await cloud32Hash(current.data)!==plan.remoteHash)
+    throw Error('Nuvem mudou; refaça a conferência.');
+  if(!confirm('Esta operação grava '+plan.added+' evento(s) de auditoria na tabela de TESTES do Supabase e cria uma nova revisão. Nenhum lançamento financeiro será alterado. Continuar?'))
+    throw Error('Cancelado.');
+  if(localStorage.getItem(KEY)!==plan.raw)throw Error('Dados locais mudaram.');
+  const check=await cloudCrossDeviceGet();
+  if(Number(check.revision)!==plan.revision||
+     await cloud32Hash(check.data)!==plan.remoteHash)
+    throw Error('Nuvem mudou antes da gravação.');
+  let returned;
+  try{
+   returned=await cloudRequest('/rest/v1/rpc/save_finance_snapshot_test','POST',{
+    p_expected_revision:plan.revision,p_data:plan.merged
+   });
+  }catch(e){
+   throw Error('Gravação não confirmada: '+e.message+'. Consulte a revisão antes de tentar novamente.');
+  }
+  const after=await cloudCrossDeviceGet();
+  if(Number(after.revision)!==plan.revision+1||
+     await cloud32Hash(after.data)!==plan.mergedHash)
+    throw Error('ALERTA: gravação não conferiu. Não tente novamente antes de investigar. Resposta RPC: '+JSON.stringify(returned));
+  if(localStorage.getItem(KEY)!==plan.raw)
+    throw Error('ALERTA: dados locais mudaram durante a operação. A nuvem foi atualizada; confira antes de continuar.');
+  status.textContent='CONCILIAÇÃO CONCLUÍDA: revisão '+after.revision+' confirmada. Dados locais não modificados.';
+  result.textContent='Revisão anterior: '+plan.revision+
+   '\nRevisão atual: '+after.revision+
+   '\nEventos incluídos: '+plan.added+
+   '\nSHA-256 da nuvem: '+plan.mergedHash+
+   '\nDados locais: NÃO MODIFICADOS'+
+   '\nAplicativo principal: NÃO MODIFICADO'+
+   '\nAtenção: outras diferenças ainda exigem resolução específica.';
+ }catch(e){status.textContent='Operação interrompida: '+e.message;result.textContent='Verifique a revisão atual antes de repetir. Nenhuma alteração local feita por este módulo.';}
+ finally{cloud332Busy=false;preview.disabled=false;btn.disabled=true;}
+}
 </script><script>
 function toggleMobileMenu(force){
  const open=typeof force==='boolean'?force:!document.body.classList.contains('mobile-menu-open');
@@ -398,7 +496,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(fal
 <input id="cloud329Confirm" type="text" autocomplete="off" placeholder="TESTAR">
 <button type="button" id="cloud329RestoreButton" onclick="cloud329SandboxTest()">Testar gravação e rollback em área isolada</button>
 <p id="cloud329Status" role="status" aria-live="polite">Nenhuma restauração iniciada.</p>
-<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><hr><p><strong>Etapa 33.0 — Diagnóstico de sincronização e conflitos (somente leitura)</strong></p><p>Verifica a cópia local deste dispositivo e a revisão da nuvem. Não envia, substitui ou mescla dados. Em caso de divergência, bloqueia sincronização automática até existir política de resolução validada.</p><div><button type="button" id="cloud330CheckButton" onclick="cloud330Check()">Verificar sincronização deste dispositivo</button><button type="button" id="cloud330DownloadButton" onclick="cloud330Download()" disabled>Baixar relatório sem dados financeiros</button></div><p id="cloud330Status" role="status" aria-live="polite">Aguardando diagnóstico.</p><pre id="cloud330Result">Nenhuma sincronização executada.</pre><hr><p><strong>Etapa 33.1 — Plano de resolução de conflitos por dispositivo</strong></p><p>Compara novamente os estados e prepara uma proposta de resolução sem substituir dados locais nem enviar alterações à nuvem. Quando houver diferenças, a escolha deve ser explícita. Não há mesclagem automática.</p><label for="cloud331Choice">Política proposta:</label><select id="cloud331Choice"><option value="block">Bloquear e manter as duas cópias (padrão seguro)</option><option value="cloud">Preparar cópia da nuvem em área isolada (não aplicar)</option><option value="local">Preparar cópia local em área isolada (não enviar)</option></select><button type="button" id="cloud331Button" onclick="cloud331Prepare()">Preparar e conferir plano de sincronização</button><button type="button" id="cloud331Download" onclick="cloud331DownloadPlan()" disabled>Baixar relatório do plano (sem dados financeiros)</button><p id="cloud331Status" role="status" aria-live="polite">Nenhuma operação iniciada.</p><pre id="cloud331Result">Sincronização automática não habilitada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+<pre id="cloud329Result">Restauração real desabilitada. Teste isolado disponível.</pre><hr><p><strong>Etapa 33.0 — Diagnóstico de sincronização e conflitos (somente leitura)</strong></p><p>Verifica a cópia local deste dispositivo e a revisão da nuvem. Não envia, substitui ou mescla dados. Em caso de divergência, bloqueia sincronização automática até existir política de resolução validada.</p><div><button type="button" id="cloud330CheckButton" onclick="cloud330Check()">Verificar sincronização deste dispositivo</button><button type="button" id="cloud330DownloadButton" onclick="cloud330Download()" disabled>Baixar relatório sem dados financeiros</button></div><p id="cloud330Status" role="status" aria-live="polite">Aguardando diagnóstico.</p><pre id="cloud330Result">Nenhuma sincronização executada.</pre><hr><p><strong>Etapa 33.1 — Plano de resolução de conflitos por dispositivo</strong></p><p>Compara novamente os estados e prepara uma proposta de resolução sem substituir dados locais nem enviar alterações à nuvem. Quando houver diferenças, a escolha deve ser explícita. Não há mesclagem automática.</p><label for="cloud331Choice">Política proposta:</label><select id="cloud331Choice"><option value="block">Bloquear e manter as duas cópias (padrão seguro)</option><option value="cloud">Preparar cópia da nuvem em área isolada (não aplicar)</option><option value="local">Preparar cópia local em área isolada (não enviar)</option></select><button type="button" id="cloud331Button" onclick="cloud331Prepare()">Preparar e conferir plano de sincronização</button><button type="button" id="cloud331Download" onclick="cloud331DownloadPlan()" disabled>Baixar relatório do plano (sem dados financeiros)</button><p id="cloud331Status" role="status" aria-live="polite">Nenhuma operação iniciada.</p><pre id="cloud331Result">Sincronização automática não habilitada.</pre><hr><p><strong>Etapa 33.2 — Conciliação controlada de auditoria na nuvem de testes</strong></p>
+<p>Esta operação pode criar uma nova revisão em <code>finance_snapshots_test</code>. Só permite prosseguir se contas, categorias, lançamentos e cartões forem exatamente iguais entre local e nuvem. Mescla exclusivamente eventos de auditoria, sem remover registros, e usa a revisão esperada no servidor para evitar sobrescritas concorrentes. Não altera os dados locais nem o aplicativo principal.</p>
+<button type="button" id="cloud332PreviewButton" onclick="cloud332Preview()">1. Conferir conciliação de auditoria</button>
+<button type="button" id="cloud332ApplyButton" onclick="cloud332Apply()" disabled>2. Confirmar atualização da nuvem de testes</button>
+<p id="cloud332Status" role="status" aria-live="polite">Aguardando conferência. Nenhuma gravação autorizada.</p>
+<pre id="cloud332Result">Somente a auditoria pode ser conciliada nesta operação.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}

@@ -471,6 +471,72 @@ async function cloud332Apply(){
  }catch(e){status.textContent='Operação interrompida: '+e.message;result.textContent='Verifique a revisão atual antes de repetir. Nenhuma alteração local feita por este módulo.';}
  finally{cloud332Busy=false;preview.disabled=false;btn.disabled=true;}
 }
+
+/* Etapa 33.3: somente leitura e exportação de proposta de atualização de auditoria. */
+let cloud333Busy=false,cloud333Plan=null;
+async function cloud333Preview(){
+ if(cloud333Busy)return;
+ cloud333Busy=true;cloud333Plan=null;
+ const button=document.getElementById('cloud333PreviewButton');
+ const download=document.getElementById('cloud333DownloadButton');
+ const status=document.getElementById('cloud333Status');
+ const result=document.getElementById('cloud333Result');
+ button.disabled=true;download.disabled=true;result.textContent='';
+ try{
+  if(!cloudToken||!cloudUser)throw Error('Autentique-se no Supabase.');
+  const raw=localStorage.getItem(KEY);
+  if(raw===null)throw Error('Armazenamento local principal ausente.');
+  const local=cloud32ReadLocal();
+  const remote=await cloudCrossDeviceGet();
+  const revision=Number(remote.revision);
+  if(!Number.isSafeInteger(revision)||revision<1)throw Error('Revisão da nuvem inválida.');
+  for(const section of ['accounts','categories','transactions','cards']){
+   if(!Array.isArray(local[section])||!Array.isArray(remote.data[section])||
+      await cloud32Hash(local[section])!==await cloud32Hash(remote.data[section]))
+    throw Error('Dados financeiros divergentes em '+section+'. Atualização bloqueada.');
+  }
+  if(!Array.isArray(local.audit)||!Array.isArray(remote.data.audit))
+    throw Error('Histórico de auditoria incompatível.');
+  const localHash=await cloud32Hash(local);
+  const cloudHash=await cloud32Hash(remote.data);
+  const merged=JSON.parse(JSON.stringify(local));
+  const seen=new Set(local.audit.map(e=>JSON.stringify(cloudStable(e))));
+  let added=0;
+  for(const event of remote.data.audit){
+   const sig=JSON.stringify(cloudStable(event));
+   if(!seen.has(sig)){merged.audit.push(event);seen.add(sig);added++;}
+  }
+  if(localStorage.getItem(KEY)!==raw)throw Error('Dados locais mudaram durante a conferência.');
+  const mergedHash=await cloud32Hash(merged);
+  cloud333Plan={
+   format:'minhas-financas-audit-merge-proposal',schema:1,
+   preparedAt:new Date().toISOString(),cloudRevision:revision,
+   originalLocalSha256:localHash,cloudSha256:cloudHash,
+   proposedSha256:mergedHash,addedAuditEvents:added,
+   status:'PREVIEW_ONLY_NO_WRITES',
+   originalLocal:local,proposedLocal:merged
+  };
+  status.textContent=added?'Prévia aprovada: '+added+' evento(s) da nuvem ausente(s) no dispositivo. Nenhuma gravação.':'Prévia aprovada: nenhum evento da nuvem ausente no dispositivo.';
+  result.textContent='Revisão da nuvem: '+revision+
+   '\nAuditoria local: '+local.audit.length+
+   '\nAuditoria nuvem: '+remote.data.audit.length+
+   '\nEventos ausentes no dispositivo: '+added+
+   '\nAuditoria proposta: '+merged.audit.length+
+   '\nSHA-256 local antes: '+localHash+
+   '\nSHA-256 nuvem: '+cloudHash+
+   '\nSHA-256 da proposta: '+mergedHash+
+   '\nContas, categorias, lançamentos e cartões: IDÊNTICOS'+
+   '\nArmazenamento principal: NÃO MODIFICADO'+
+   '\nSupabase: NÃO MODIFICADO'+
+   '\nAplicação automática: DESABILITADA';
+  download.disabled=false;
+ }catch(e){status.textContent='Conferência bloqueada: '+e.message;result.textContent='Nenhum dado modificado.';}
+ finally{cloud333Busy=false;button.disabled=false;}
+}
+function cloud333Download(){
+ if(!cloud333Plan)return;
+ cloud32SaveFile(cloud333Plan,'minhas-financas-PROPOSTA-AUDITORIA-33-3.json');
+}
 </script><script>
 function toggleMobileMenu(force){
  const open=typeof force==='boolean'?force:!document.body.classList.contains('mobile-menu-open');
@@ -501,7 +567,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMobileMenu(fal
 <button type="button" id="cloud332PreviewButton" onclick="cloud332Preview()">1. Conferir conciliação de auditoria</button>
 <button type="button" id="cloud332ApplyButton" onclick="cloud332Apply()" disabled>2. Confirmar atualização da nuvem de testes</button>
 <p id="cloud332Status" role="status" aria-live="polite">Aguardando conferência. Nenhuma gravação autorizada.</p>
-<pre id="cloud332Result">Somente a auditoria pode ser conciliada nesta operação.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
+<pre id="cloud332Result">Somente a auditoria pode ser conciliada nesta operação.</pre><hr><p><strong>Etapa 33.3 — Preparar atualização da auditoria local (sem gravação)</strong></p>
+<p>Confere a revisão da nuvem, verifica que os dados financeiros são iguais e prepara uma cópia com os eventos de auditoria ausentes no dispositivo. A prévia usa apenas memória e pode ser baixada como JSON de segurança. Nenhum dado local ou da nuvem é alterado.</p>
+<button type="button" id="cloud333PreviewButton" onclick="cloud333Preview()">Conferir atualização nuvem → dispositivo</button>
+<button type="button" id="cloud333DownloadButton" onclick="cloud333Download()" disabled>Baixar cópia proposta (JSON)</button>
+<p id="cloud333Status" role="status" aria-live="polite">Aguardando conferência.</p>
+<pre id="cloud333Result">Nenhuma alteração realizada.</pre><p id="cloudStatus" role="status" aria-live="polite">Aguardando login.</p><pre id="cloudResult">Nenhum dado financeiro será exibido neste painel.</pre><p style="font-size:12px">Não cole chaves secretas. A senha e o token de acesso ficam apenas na memória desta aba. O envio é exclusivamente para finance_snapshots_test. Não substitua o index.html atual.</p></div></section><script>
 /* v0.5.4 TESTE: gravação manual somente em finance_snapshots_test via RPC; token apenas em memória */
 let cloudToken=null, cloudUser=null;
 function cloudToggle(force){const panel=document.getElementById('cloudPanel');panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'))}
